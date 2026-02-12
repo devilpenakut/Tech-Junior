@@ -33,3 +33,4 @@
 - **Update**: Increased news items count from 5 to 6.
 - **Fix**: Improved prompt engineering to ensure valid source URLs from Techmeme (fixing broken links).
 - **Feature Add**: Added "Secret Admin Mode" (Click Rocket 10x) to refresh news manually while hiding the public refresh button to save quota.
+- **Fix (Build)**: Updated `@google/genai` dependency to use `*` (latest) to resolve "version not found" error during Vercel deployment. Removed conflicting `importmap` from HTML.
