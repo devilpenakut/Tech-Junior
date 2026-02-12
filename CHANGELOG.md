@@ -5,6 +5,7 @@
 - **Efficient Rendering**: Used React state management to minimize re-renders.
 - **Asset Optimization**: Used SVG icons (`lucide-react`) for zero-latency loading compared to image assets.
 - **Network**: Implemented error handling and retry logic for API calls.
+- **Caching**: Added `localStorage` caching (1 hour duration) to minimize API usage and prevent quota exhaustion.
 
 ## ♿ Accessibility (A11y)
 - **Contrast**: Used high-contrast text colors (Slate-800/700) on light backgrounds (Sky-50, etc.).
@@ -31,3 +32,4 @@
 - **Update**: Removed TTS ("Bacakan untukku") feature as requested.
 - **Update**: Increased news items count from 5 to 6.
 - **Fix**: Improved prompt engineering to ensure valid source URLs from Techmeme (fixing broken links).
+- **Feature Add**: Added "Secret Admin Mode" (Click Rocket 10x) to refresh news manually while hiding the public refresh button to save quota.
