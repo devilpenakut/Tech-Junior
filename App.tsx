@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Rocket, AlertCircle, ShieldCheck } from 'lucide-react';
 import { fetchTechNewsForKids } from './services/geminiService';
 import { NewsItem, AppState } from './types';
@@ -10,23 +10,29 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [secretCount, setSecretCount] = useState(0);
+  const hasFetched = useRef(false); // Ref to prevent double-fetching in StrictMode
 
   const loadNews = async (force: boolean = false) => {
+    // In dev mode, prevents double call. In force refresh, we ignore this check.
+    if (!force && hasFetched.current) return;
+    hasFetched.current = true;
+
     setAppState(AppState.LOADING);
     setErrorMsg(null);
     try {
       const data = await fetchTechNewsForKids(force);
       setNews(data);
       setAppState(AppState.SUCCESS);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       setAppState(AppState.ERROR);
-      setErrorMsg("Waduh! Gagal mengambil berita. Coba lagi ya!");
+      // Display the specific error message thrown from the service
+      setErrorMsg(err.message || "Waduh! Gagal mengambil berita. Coba lagi ya!");
     }
   };
 
   useEffect(() => {
-    // Initial load (uses cache if available)
+    // Initial load
     loadNews(false);
   }, []);
 
@@ -60,10 +66,10 @@ const App: React.FC = () => {
             </div>
           </div>
           
-          {/* Status Badge instead of Refresh Button */}
+          {/* Status Badge */}
           <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold border border-green-200">
             <ShieldCheck size={14} />
-            <span>Mode Hemat Kuota</span>
+            <span>Live Update</span>
           </div>
         </div>
       </header>
@@ -77,6 +83,11 @@ const App: React.FC = () => {
           <div className="flex flex-col items-center justify-center p-8 bg-red-50 rounded-3xl border-2 border-red-100 text-center mt-8">
             <AlertCircle size={48} className="text-red-400 mb-4" />
             <h3 className="text-xl font-bold text-red-800 mb-2">{errorMsg}</h3>
+            <p className="text-gray-600 mb-4 max-w-md mx-auto">
+              {errorMsg?.includes('API Key') 
+                ? "Admin perlu mengecek pengaturan Vercel." 
+                : "Mungkin kuota habis atau internet sedang gangguan."}
+            </p>
             <button 
               onClick={() => loadNews(true)}
               className="mt-4 px-6 py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 transition-colors"
@@ -89,7 +100,7 @@ const App: React.FC = () => {
         {appState === AppState.SUCCESS && (
           <>
             <div className="mb-8 text-center">
-              <span className="inline-block px-4 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-bold mb-2 animate-bounce">
+              <span className="inline-block px-4 py-1 rounded-full text-sm font-bold mb-2 animate-bounce bg-yellow-100 text-yellow-800">
                 Update Hari Ini
               </span>
               <h2 className="text-3xl md:text-4xl font-extrabold text-gray-800">

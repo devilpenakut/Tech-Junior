@@ -6,7 +6,6 @@
 - **Asset Optimization**: Used SVG icons (`lucide-react`) for zero-latency loading compared to image assets.
 - **Network**: Implemented error handling and retry logic for API calls.
 - **Caching**: Added `localStorage` caching (1 hour duration) to minimize API usage and prevent quota exhaustion.
-- **Graceful Degradation**: Added **Mock Data Fallback** when API hits Rate Limits (429 Errors), ensuring the app never shows a blank error screen.
 
 ## ♿ Accessibility (A11y)
 - **Contrast**: Used high-contrast text colors (Slate-800/700) on light backgrounds (Sky-50, etc.).
@@ -24,6 +23,7 @@
 - **Componentization**: Split UI into `Header`, `NewsCard`, and `Loading` components.
 - **Service Layer**: Separated API logic (`geminiService.ts`) from UI logic.
 - **Clean Code**: Used functional components with Hooks (`useState`, `useEffect`, `useRef`).
+- **Debugging**: Added explicit API Key validation to help troubleshoot Vercel deployment issues.
 
 ## 🔄 Changes Summary
 - **Initial Build**: Created core application structure.
@@ -35,4 +35,4 @@
 - **Fix**: Improved prompt engineering to ensure valid source URLs from Techmeme (fixing broken links).
 - **Feature Add**: Added "Secret Admin Mode" (Click Rocket 10x) to refresh news manually while hiding the public refresh button to save quota.
 - **Fix (Build)**: Updated `@google/genai` dependency to use `*` (latest) to resolve "version not found" error during Vercel deployment. Removed conflicting `importmap` from HTML.
-- **Reliability Fix**: Implemented Mock Data fallback for 429 Resource Exhausted errors.
+- **Revert**: Removed Mock Data fallback. The app now explicitly shows an error message if the API Key is missing or Quota is exhausted, to aid in debugging.
