@@ -13,6 +13,39 @@ interface CachedData {
   data: NewsItem[];
 }
 
+const MOCK_NEWS: NewsItem[] = [
+  {
+    title: "Nintendo Switch 2 Dikabarkan Segera Rilis! (Mode Demo)",
+    summary: "Banyak rumor mengatakan Nintendo sedang menyiapkan konsol game baru yang lebih canggih. Layarnya lebih besar dan grafisnya lebih bagus dari yang sekarang!",
+    link: "https://www.theverge.com/games"
+  },
+  {
+    title: "Minecraft Update: Ada Hewan Baru yang Lucu (Mode Demo)",
+    summary: "Mojang baru saja mengumumkan update terbaru untuk Minecraft. Pemain bisa menemukan hewan langka baru di hutan dan membuat rumah dari jenis kayu baru.",
+    link: "https://www.minecraft.net/"
+  },
+  {
+    title: "Robot Anjing Membantu Petugas Pemadam Kebakaran (Mode Demo)",
+    summary: "Di Amerika, petugas pemadam kebakaran mulai menggunakan robot berbentuk anjing untuk masuk ke gedung yang berbahaya sebelum manusia masuk.",
+    link: "https://techcrunch.com/"
+  },
+  {
+    title: "Mobil Terbang Berhasil Uji Coba Pertama (Mode Demo)",
+    summary: "Sebuah perusahaan teknologi berhasil menerbangkan mobil listrik mereka selama 10 menit. Di masa depan, kita mungkin tidak perlu macet-macetan lagi!",
+    link: "https://www.cnbc.com/technology/"
+  },
+  {
+    title: "Kacamata Pintar yang Bisa Menerjemahkan Bahasa (Mode Demo)",
+    summary: "Kacamata baru ini bisa mendengarkan orang berbicara bahasa asing dan langsung menampilkan terjemahannya di lensa kacamata. Seperti film fiksi ilmiah!",
+    link: "https://www.engadget.com/"
+  },
+  {
+    title: "YouTube Perketat Aturan untuk Video Anak (Mode Demo)",
+    summary: "YouTube membuat peraturan baru supaya video yang ditonton anak-anak lebih aman dan mendidik. Video yang tidak baik akan otomatis disembunyikan.",
+    link: "https://blog.youtube/"
+  }
+];
+
 /**
  * Fetches top Techmeme news, translates, and simplifies for kids.
  * Includes caching to save API quota.
@@ -96,9 +129,12 @@ export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsIt
     console.error("Error fetching news:", error);
     
     // Check for common billing/quota errors
-    if (error.message?.includes('429') || error.status === 429) {
-      throw new Error("Kuota API harian habis atau server sedang sibuk. Coba lagi besok ya!");
+    // If quota is exhausted (429), return MOCK data instead of crashing the app.
+    if (error.message?.includes('429') || error.status === 429 || error.message?.includes('RESOURCE_EXHAUSTED')) {
+      console.warn("API Quota exhausted. Switching to Mock Data mode.");
+      return MOCK_NEWS;
     }
+
     if (error.message?.includes('403') || error.status === 403) {
       throw new Error("Masalah izin API Key (Billing/Restriction). Cek konfigurasi.");
     }
