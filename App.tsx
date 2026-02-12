@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Rocket, RefreshCw, AlertCircle } from 'lucide-react';
+import { Rocket, AlertCircle, ShieldCheck } from 'lucide-react';
 import { fetchTechNewsForKids } from './services/geminiService';
 import { NewsItem, AppState } from './types';
 import NewsCard from './components/NewsCard';
@@ -9,12 +9,13 @@ const App: React.FC = () => {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [secretCount, setSecretCount] = useState(0);
 
-  const loadNews = async () => {
+  const loadNews = async (force: boolean = false) => {
     setAppState(AppState.LOADING);
     setErrorMsg(null);
     try {
-      const data = await fetchTechNewsForKids();
+      const data = await fetchTechNewsForKids(force);
       setNews(data);
       setAppState(AppState.SUCCESS);
     } catch (err) {
@@ -25,16 +26,28 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    loadNews();
+    // Initial load (uses cache if available)
+    loadNews(false);
   }, []);
+
+  const handleSecretClick = () => {
+    // Secret backdoor: Click rocket 10 times to force refresh
+    const newCount = secretCount + 1;
+    setSecretCount(newCount);
+    
+    if (newCount === 10) {
+      loadNews(true); // Force refresh
+      setSecretCount(0);
+    }
+  };
 
   return (
     <div className="min-h-screen pb-12">
       {/* Sticky Header */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b-4 border-blue-100 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-500 p-2 rounded-xl text-white shadow-lg transform -rotate-3">
+          <div className="flex items-center gap-3 select-none cursor-pointer" onClick={handleSecretClick}>
+            <div className={`bg-blue-500 p-2 rounded-xl text-white shadow-lg transform transition-all ${secretCount > 0 ? 'scale-110 rotate-12' : '-rotate-3'}`}>
               <Rocket size={28} strokeWidth={2.5} />
             </div>
             <div>
@@ -47,14 +60,11 @@ const App: React.FC = () => {
             </div>
           </div>
           
-          <button 
-            onClick={loadNews}
-            disabled={appState === AppState.LOADING}
-            className="p-3 bg-blue-50 hover:bg-blue-100 rounded-full text-blue-600 transition-colors"
-            aria-label="Refresh news"
-          >
-            <RefreshCw size={24} className={appState === AppState.LOADING ? "animate-spin" : ""} />
-          </button>
+          {/* Status Badge instead of Refresh Button */}
+          <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold border border-green-200">
+            <ShieldCheck size={14} />
+            <span>Mode Hemat Kuota</span>
+          </div>
         </div>
       </header>
 
@@ -68,7 +78,7 @@ const App: React.FC = () => {
             <AlertCircle size={48} className="text-red-400 mb-4" />
             <h3 className="text-xl font-bold text-red-800 mb-2">{errorMsg}</h3>
             <button 
-              onClick={loadNews}
+              onClick={() => loadNews(true)}
               className="mt-4 px-6 py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 transition-colors"
             >
               Coba Lagi
@@ -79,7 +89,7 @@ const App: React.FC = () => {
         {appState === AppState.SUCCESS && (
           <>
             <div className="mb-8 text-center">
-              <span className="inline-block px-4 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-bold mb-2">
+              <span className="inline-block px-4 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-bold mb-2 animate-bounce">
                 Update Hari Ini
               </span>
               <h2 className="text-3xl md:text-4xl font-extrabold text-gray-800">
@@ -100,6 +110,7 @@ const App: React.FC = () => {
       <footer className="mt-16 text-center text-gray-400 text-sm pb-8">
         <p>Ditenagai oleh Gemini AI & Techmeme</p>
         <p className="mt-1">Dibuat khusus untuk pembaca cilik 🚀</p>
+        {secretCount > 0 && <p className="text-xs text-blue-300 mt-2">Admin mode: {secretCount}/10</p>}
       </footer>
     </div>
   );
