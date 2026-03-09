@@ -5,6 +5,8 @@ import { NewsItem, AppState } from './types';
 import NewsCard from './components/NewsCard';
 import Loading from './components/Loading';
 
+const ADMIN_CLICK_COUNT = 10;
+
 const App: React.FC = () => {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
@@ -23,11 +25,11 @@ const App: React.FC = () => {
       const data = await fetchTechNewsForKids(force);
       setNews(data);
       setAppState(AppState.SUCCESS);
-    } catch (err: any) {
-      console.error(err);
+    } catch (err: unknown) {
       setAppState(AppState.ERROR);
       // Display the specific error message thrown from the service
-      setErrorMsg(err.message || "Waduh! Gagal mengambil berita. Coba lagi ya!");
+      const message = err instanceof Error ? err.message : "Waduh! Gagal mengambil berita. Coba lagi ya!";
+      setErrorMsg(message);
     }
   };
 
@@ -37,15 +39,17 @@ const App: React.FC = () => {
   }, []);
 
   const handleSecretClick = () => {
-    // Secret backdoor: Click rocket 10 times to force refresh
+    // Secret backdoor: Click rocket ADMIN_CLICK_COUNT times to force refresh
     const newCount = secretCount + 1;
     setSecretCount(newCount);
-    
-    if (newCount === 10) {
+
+    if (newCount === ADMIN_CLICK_COUNT) {
       loadNews(true); // Force refresh
       setSecretCount(0);
     }
   };
+
+  const isLoading = appState === AppState.LOADING;
 
   return (
     <div className="min-h-screen pb-12">
@@ -65,7 +69,7 @@ const App: React.FC = () => {
               </p>
             </div>
           </div>
-          
+
           {/* Status Badge */}
           <div className="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold border border-green-200">
             <ShieldCheck size={14} />
@@ -76,21 +80,22 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-4 pt-8">
-        
-        {appState === AppState.LOADING && <Loading />}
+
+        {isLoading && <Loading />}
 
         {appState === AppState.ERROR && (
           <div className="flex flex-col items-center justify-center p-8 bg-red-50 rounded-3xl border-2 border-red-100 text-center mt-8">
             <AlertCircle size={48} className="text-red-400 mb-4" />
             <h3 className="text-xl font-bold text-red-800 mb-2">{errorMsg}</h3>
             <p className="text-gray-600 mb-4 max-w-md mx-auto">
-              {errorMsg?.includes('API Key') 
-                ? "Admin perlu mengecek pengaturan Vercel." 
+              {errorMsg?.includes('API Key')
+                ? "Admin perlu mengecek pengaturan Vercel."
                 : "Mungkin kuota habis atau internet sedang gangguan."}
             </p>
-            <button 
+            <button
               onClick={() => loadNews(true)}
-              className="mt-4 px-6 py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 transition-colors"
+              disabled={isLoading}
+              className="mt-4 px-6 py-2 bg-red-500 text-white rounded-full font-bold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Coba Lagi
             </button>
@@ -121,7 +126,7 @@ const App: React.FC = () => {
       <footer className="mt-16 text-center text-gray-400 text-sm pb-8">
         <p>Ditenagai oleh Gemini AI & Techmeme</p>
         <p className="mt-1">Dibuat khusus untuk pembaca cilik 🚀</p>
-        {secretCount > 0 && <p className="text-xs text-blue-300 mt-2">Admin mode: {secretCount}/10</p>}
+        {secretCount > 0 && <p className="text-xs text-blue-300 mt-2">Admin mode: {secretCount}/{ADMIN_CLICK_COUNT}</p>}
       </footer>
     </div>
   );

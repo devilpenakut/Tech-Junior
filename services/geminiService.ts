@@ -3,6 +3,8 @@ import { NewsItem } from "../types";
 
 const CACHE_KEY = 'techmeme_news_cache';
 const CACHE_DURATION = 60 * 60 * 1000; // 1 Hour in milliseconds
+const GEMINI_MODEL = "gemini-3-flash-preview";
+export const NEWS_COUNT = 6;
 
 interface CachedData {
   timestamp: number;
@@ -16,7 +18,6 @@ interface CachedData {
 export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsItem[]> => {
   // 0. Check API Key presence (Critical for Vercel debugging)
   if (!process.env.API_KEY) {
-    console.error("API_KEY is missing in process.env");
     throw new Error("API Key tidak ditemukan! Pastikan Anda sudah memasukkan 'API_KEY' di Settings > Environment Variables pada Vercel.");
   }
 
@@ -32,35 +33,33 @@ export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsIt
         const now = Date.now();
         // If cache is valid (less than 1 hour old)
         if (now - cached.timestamp < CACHE_DURATION) {
-          console.log("Serving news from cache (Saving API Quota)");
+          if (import.meta.env.DEV) console.log("Serving news from cache (Saving API Quota)");
           return cached.data;
         }
-      } catch (e) {
-        console.warn("Cache parse error", e);
+      } catch {
         localStorage.removeItem(CACHE_KEY);
       }
     }
   }
 
   try {
-    console.log("Fetching fresh news from Gemini API...");
-    const model = "gemini-3-flash-preview";
-    
+    if (import.meta.env.DEV) console.log("Fetching fresh news from Gemini API...");
+
     const prompt = `
       Kamu adalah asisten berita untuk anak-anak.
       Tugasmu:
       1. Cari informasi terkini tentang "Techmeme top stories" atau akses data terkait headline di https://techmeme.com/.
-      2. Pilih 6 berita teknologi PALING PENTING yang sedang trending hari ini.
+      2. Pilih ${NEWS_COUNT} berita teknologi PALING PENTING yang sedang trending hari ini.
       3. Untuk setiap berita:
          - Temukan URL sumber aslinya (misalnya link ke The Verge, TechCrunch, CNBC, dll yang ditautkan oleh Techmeme). JANGAN mengarang URL. Gunakan URL yang benar-benar ada di hasil pencarian.
          - Buat Judul dalam Bahasa Indonesia yang seru.
          - Buat Ringkasan cerita pendek untuk anak umur 10 tahun (Bahasa Indonesia).
 
-      Output JSON Array dengan 6 item.
+      Output JSON Array dengan ${NEWS_COUNT} item.
     `;
 
     const response = await ai.models.generateContent({
-      model: model,
+      model: GEMINI_MODEL,
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }], // Grounding to get real Techmeme data
@@ -81,8 +80,13 @@ export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsIt
     });
 
     if (response.text) {
-      const parsed = JSON.parse(response.text) as NewsItem[];
-      
+      let parsed: NewsItem[];
+      try {
+        parsed = JSON.parse(response.text) as NewsItem[];
+      } catch {
+        throw new Error("Gagal memproses data berita dari server.");
+      }
+
       // 2. Save to Cache
       const cacheData: CachedData = {
         timestamp: Date.now(),
@@ -92,25 +96,25 @@ export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsIt
 
       return parsed;
     }
-    
+
     throw new Error("No content generated");
 
-  } catch (error: any) {
-    console.error("Error fetching news raw:", error);
-    
+  } catch (error: unknown) {
+    const err = error as { message?: string; status?: number };
+
     // Customize error messages for better user experience
-    if (error.message?.includes('429') || error.status === 429 || error.message?.includes('RESOURCE_EXHAUSTED')) {
+    if (err.message?.includes('429') || err.status === 429 || err.message?.includes('RESOURCE_EXHAUSTED')) {
       throw new Error("Kuota API Harian Habis (Error 429). Silakan coba lagi besok!");
     }
 
-    if (error.message?.includes('403') || error.status === 403) {
+    if (err.message?.includes('403') || err.status === 403) {
       throw new Error("Masalah Izin API Key (Error 403). Cek konfigurasi.");
     }
 
-    if (error.message?.includes('API Key tidak ditemukan')) {
-      throw error; // Rethrow the missing key error specifically
+    if (err.message?.includes('API Key tidak ditemukan') || err.message?.includes('memproses data')) {
+      throw error; // Rethrow specific errors
     }
-    
+
     throw new Error("Gagal mengambil berita. Server sedang sibuk atau ada gangguan jaringan.");
   }
 };
