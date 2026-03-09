@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { NewsItem } from "../types";
 
 const CACHE_KEY = 'techmeme_news_cache';
@@ -55,7 +55,8 @@ export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsIt
          - Buat Judul dalam Bahasa Indonesia yang seru.
          - Buat Ringkasan cerita pendek untuk anak umur 10 tahun (Bahasa Indonesia).
 
-      Output JSON Array dengan ${NEWS_COUNT} item.
+      PENTING: Balas HANYA dengan JSON Array berisi tepat ${NEWS_COUNT} objek, tanpa teks lain.
+      Format: [{"title":"...","summary":"...","link":"..."},...]
     `;
 
     const response = await ai.models.generateContent({
@@ -63,26 +64,22 @@ export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsIt
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }], // Grounding to get real Techmeme data
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING, description: "Judul berita Indonesia yang menarik" },
-              summary: { type: Type.STRING, description: "Ringkasan cerita anak" },
-              link: { type: Type.STRING, description: "URL valid ke artikel sumber berita (bukan halaman utama)" }
-            },
-            required: ["title", "summary", "link"]
-          }
-        }
+        // Note: responseMimeType + responseSchema tidak kompatibel dengan googleSearch
       }
     });
 
     if (response.text) {
       let parsed: NewsItem[];
       try {
-        parsed = JSON.parse(response.text) as NewsItem[];
+        // Strip markdown code fences jika model menambahkannya
+        let rawText = response.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        // Ambil hanya bagian JSON array
+        const jsonStart = rawText.indexOf('[');
+        const jsonEnd = rawText.lastIndexOf(']');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          rawText = rawText.slice(jsonStart, jsonEnd + 1);
+        }
+        parsed = JSON.parse(rawText) as NewsItem[];
       } catch {
         throw new Error("Gagal memproses data berita dari server.");
       }
@@ -104,7 +101,7 @@ export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsIt
 
     // Customize error messages for better user experience
     if (err.message?.includes('429') || err.status === 429 || err.message?.includes('RESOURCE_EXHAUSTED')) {
-      throw new Error("Kuota API Harian Habis (Error 429). Silakan coba lagi besok!");
+      throw new Error("Batas request API tercapai (Error 429). Tunggu beberapa menit lalu coba lagi. Jika masih gagal, kuota harian Google Search Grounding mungkin sudah habis.");
     }
 
     if (err.message?.includes('403') || err.status === 403) {
