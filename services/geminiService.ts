@@ -3,7 +3,7 @@ import { NewsItem } from "../types";
 
 const CACHE_KEY = 'techmeme_news_cache';
 const CACHE_DURATION = 60 * 60 * 1000; // 1 Hour in milliseconds
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-3-flash-preview";
 export const NEWS_COUNT = 6;
 
 const RSS2JSON_URL = `https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.techmeme.com%2Ffeed.xml&api_key=&count=${NEWS_COUNT * 2}`;
