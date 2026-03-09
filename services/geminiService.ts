@@ -6,27 +6,18 @@ const CACHE_DURATION = 60 * 60 * 1000; // 1 Hour in milliseconds
 const GEMINI_MODEL = "gemini-3-flash-preview";
 export const NEWS_COUNT = 6;
 
-const RSS2JSON_URL = `https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.techmeme.com%2Ffeed.xml&api_key=&count=${NEWS_COUNT * 2}`;
+const TECHMEME_RSS = "https://www.techmeme.com/feed.xml";
+const CORS_PROXY = "https://api.allorigins.win/get?url=";
 
 interface CachedData {
   timestamp: number;
   data: NewsItem[];
 }
 
-interface Rss2JsonItem {
-  title: string;
-  link: string;
-  description?: string;
-}
-
-interface Rss2JsonResponse {
-  status: string;
-  items: Rss2JsonItem[];
-}
-
 /**
- * Fetches top Techmeme news via RSS, then translates and simplifies for kids using Gemini.
- * No Google Search Grounding used — avoids search quota issues.
+ * Fetches top Techmeme news via RSS (allorigins.win CORS proxy + DOMParser),
+ * then translates and simplifies for kids using Gemini.
+ * No Google Search Grounding — avoids search quota issues.
  */
 export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsItem[]> => {
   // 0. Check API Key presence
@@ -53,23 +44,26 @@ export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsIt
   }
 
   try {
-    if (import.meta.env.DEV) console.log("Fetching RSS from Techmeme via rss2json...");
+    if (import.meta.env.DEV) console.log("Fetching Techmeme RSS via allorigins.win...");
 
-    // 2. Fetch Techmeme RSS Feed (no API quota)
-    const rssResponse = await fetch(RSS2JSON_URL);
-    if (!rssResponse.ok) {
-      throw new Error(`Gagal mengambil RSS feed (HTTP ${rssResponse.status})`);
-    }
+    // 2. Fetch Techmeme RSS via CORS proxy
+    const proxyRes = await fetch(`${CORS_PROXY}${encodeURIComponent(TECHMEME_RSS)}`);
+    if (!proxyRes.ok) throw new Error(`Proxy gagal (HTTP ${proxyRes.status})`);
 
-    const rssData: Rss2JsonResponse = await rssResponse.json();
-    if (rssData.status !== 'ok' || !rssData.items?.length) {
-      throw new Error("RSS feed tidak mengandung berita.");
-    }
+    const proxyData = await proxyRes.json();
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(proxyData.contents as string, "text/xml");
+    const xmlItems = Array.from(xml.querySelectorAll("item")).slice(0, NEWS_COUNT);
 
-    const topItems = rssData.items.slice(0, NEWS_COUNT);
-    const newsListText = topItems
-      .map((item, i) => `${i + 1}. Judul: "${item.title}" | URL: ${item.link}`)
-      .join('\n');
+    if (!xmlItems.length) throw new Error("RSS feed tidak mengandung berita.");
+
+    const newsListText = xmlItems
+      .map((item, i) => {
+        const title = item.querySelector("title")?.textContent ?? "";
+        const link = item.querySelector("link")?.textContent ?? "";
+        return `${i + 1}. Judul: "${title}" | URL: ${link}`;
+      })
+      .join("\n");
 
     if (import.meta.env.DEV) console.log("RSS fetched. Sending to Gemini for translation...");
 
@@ -94,9 +88,7 @@ export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsIt
       contents: prompt,
     });
 
-    if (!response.text) {
-      throw new Error("No content generated from Gemini.");
-    }
+    if (!response.text) throw new Error("No content generated from Gemini.");
 
     let parsed: NewsItem[];
     try {
@@ -129,7 +121,7 @@ export const fetchTechNewsForKids = async (forceRefresh = false): Promise<NewsIt
     if (err.message?.includes('API Key tidak ditemukan') || err.message?.includes('memproses data')) {
       throw error;
     }
-    if (err.message?.includes('RSS feed') || err.message?.includes('Gagal mengambil RSS')) {
+    if (err.message?.includes('Proxy gagal') || err.message?.includes('RSS feed')) {
       throw new Error("Gagal mengambil berita dari Techmeme. Periksa koneksi internet.");
     }
 
